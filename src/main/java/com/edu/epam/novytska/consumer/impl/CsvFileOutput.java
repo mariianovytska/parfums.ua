@@ -17,7 +17,7 @@ public class CsvFileOutput implements SiteProductConsumer {
     private OutputStream outputStream;
 
     public CsvFileOutput(String fileName) throws FileNotFoundException {
-        this.outputStream = new FileOutputStream(new File(fileName+"-"+getNowDate()+".scv"), true);
+        this.outputStream = new FileOutputStream(new File(fileName+"-"+getNowDate()+".csv"), true);
     }
 
     @Override
