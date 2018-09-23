@@ -21,10 +21,10 @@ public class CsvFileOutput implements SiteProductConsumer {
     }
 
     @Override
-    public void consume(String title, String desc, List<String> specs, String language) {
+    public void consume(String title, String desc, List<String> specs) {
         log.debug("Product with title: "+ title);
         try {
-            outputStream.write(outputBuilder(title, desc, specs, language).getBytes());
+            outputStream.write(outputBuilder(title, desc, specs).getBytes());
             outputStream.flush();
         } catch (IOException e) {
             StringWriter writer = new StringWriter();
@@ -34,43 +34,18 @@ public class CsvFileOutput implements SiteProductConsumer {
         }
     }
 
-    private String outputBuilder(String title, String desc, List<String> specs, String language){
-        Map<String, String> specsMap = new HashMap<>();
-        String pattern = "(.*):(.*)";
-        Pattern p = Pattern.compile(pattern);
-        for(String e : specs) {
-            Matcher m = p.matcher(e);
-            if (m.matches()){
-                specsMap.put(m.group(1).trim(), m.group(2).trim().replace(",", ""));
+    private String outputBuilder(String title, String desc, List<String> specs){
+        String result = title.replace(",", "").concat(",");
+        for(String spec: specs){
+            if(spec != null){
+                spec = spec.replace(",", "");
+            } else {
+                spec = "";
             }
+            result = result.concat(spec+",");
         }
-        String result;
-        if(language.equals("ru")){
-            result = title.replace(",", "") + ","
-                    + specsMap.get(TemplateParfumsConstRu.AROMATS.toString()) + ","
-                    + specsMap.get(TemplateParfumsConstRu.BASE_NOTES.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstRu.HEART_NOTES.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstRu.HIGH_NOTES.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstRu.BRAND.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstRu.COUNTRY.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstRu.VOLUME.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstRu.SEX.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstRu.LAUNCH_DATE.toString())+ ","
-                    + desc.replace(",", "")+ ",\n";
-        } else {
-            result = title.replace(",", "") + ","
-                    + specsMap.get(TemplateParfumsConstUa.AROMATS.toString()) + ","
-                    + specsMap.get(TemplateParfumsConstUa.BASE_NOTES.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstUa.HEART_NOTES.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstUa.HIGH_NOTES.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstUa.BRAND.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstUa.COUNTRY.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstUa.VOLUME.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstUa.SEX.toString())+ ","
-                    + specsMap.get(TemplateParfumsConstUa.LAUNCH_DATE.toString())+ ","
-                    + desc.replace(",", "")+ ",\n";
-        }
-        return result.replace("null", "");
+        String descCsv = desc.replace(",", "");
+        return result.concat(descCsv+"\n");
     }
 
     private String getNowDate(){

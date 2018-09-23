@@ -2,6 +2,8 @@ package com.edu.epam.novytska.producer.impl;
 
 import com.edu.epam.novytska.constants.HttpConnectionConst;
 import com.edu.epam.novytska.constants.HtmlParfumsConst;
+import com.edu.epam.novytska.constants.TemplateParfumsConstRu;
+import com.edu.epam.novytska.constants.TemplateParfumsConstUa;
 import com.edu.epam.novytska.consumer.SiteProductConsumer;
 import com.edu.epam.novytska.producer.SiteProductProducer;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +14,8 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 public class ParfumsUaCrawler implements SiteProductProducer {
@@ -109,12 +113,43 @@ public class ParfumsUaCrawler implements SiteProductProducer {
                 String desctitle = doc.getElementsByClass(HtmlParfumsConst.PRODUCT_NAME_CLASS.toString()).text();
                 String desc = doc.getElementById(HtmlParfumsConst.PRODUCT_DESC_ID.toString()).getElementsByTag(HtmlParfumsConst.PRODUCT_DESC_TAG.toString()).text();
                 Elements specsubtitle = doc.getElementsByClass(HtmlParfumsConst.PRODUCT_SPECS_CLASS.toString());
-                List<String> specs = new ArrayList<>();
-                for(Element e : specsubtitle) {
-                    specs.add(e.text());
-                }
-                consumer.consume(desctitle, desc, specs, language);
+                consumer.consume(desctitle, desc, buildSpecs(specsubtitle));
             }
         }
+    }
+
+    private List<String> buildSpecs(Elements specsubtitle){
+        Map<String, String> specsMap = new HashMap<>();
+        String pattern = "(.*):(.*)";
+        Pattern p = Pattern.compile(pattern);
+        for(Element e : specsubtitle) {
+            Matcher m = p.matcher(e.text());
+            if (m.matches()){
+                specsMap.put(m.group(1).trim(), m.group(2).trim());
+            }
+        }
+        List<String> specs = new ArrayList<>();
+        if(language.equals("ru")){
+            specs.add(specsMap.get(TemplateParfumsConstRu.AROMATS.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstRu.BASE_NOTES.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstRu.HEART_NOTES.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstRu.HEART_NOTES.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstRu.BRAND.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstRu.COUNTRY.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstRu.VOLUME.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstRu.SEX.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstRu.LAUNCH_DATE.toString()));
+        } else {
+            specs.add(specsMap.get(TemplateParfumsConstUa.AROMATS.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstUa.BASE_NOTES.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstUa.HEART_NOTES.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstUa.HEART_NOTES.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstUa.BRAND.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstUa.COUNTRY.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstUa.VOLUME.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstUa.SEX.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstUa.LAUNCH_DATE.toString()));
+        }
+        return specs;
     }
 }
