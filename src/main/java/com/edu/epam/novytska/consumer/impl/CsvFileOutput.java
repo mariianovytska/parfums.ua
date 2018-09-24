@@ -6,6 +6,7 @@ import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 public class CsvFileOutput implements SiteProductConsumer {
@@ -16,13 +17,11 @@ public class CsvFileOutput implements SiteProductConsumer {
         this.outputStream = new FileOutputStream(new File(fileName+"-"+getNowDate()+".csv"), true);
     }
 
-
-
     @Override
     public synchronized void consume(List<String> specs) {
-        log.debug("Product with title: "+ specs.get(0));
         try {
-            outputStream.write(outputBuilder(specs).getBytes());
+            String result = outputBuilder(specs);
+            outputStream.write(result.getBytes());
             outputStream.flush();
         } catch (IOException e) {
             StringWriter writer = new StringWriter();

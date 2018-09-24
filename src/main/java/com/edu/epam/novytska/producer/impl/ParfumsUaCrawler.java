@@ -16,6 +16,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,6 +28,7 @@ public class ParfumsUaCrawler implements SiteProductProducer {
 
     @Override
     public void start(SiteProductConsumer consumer) {
+        log.debug("Start crawling");
         Document doc;
         try {
             doc = documentFactory(BASE_PARFUM_CATEGORY_LINK);
@@ -38,16 +40,15 @@ public class ParfumsUaCrawler implements SiteProductProducer {
     }
 
     private Document documentFactory(String link) throws IOException {
-        log.debug("Getting a connection to the link: "+ link);
         Document doc;
         try{
             //first try to access the link
             doc = Jsoup.connect(link).userAgent(HttpConnectionConst.DEFAULT_UA.toString())
-                    .userAgent(HttpConnectionConst.USER_AGENT.toString()).timeout(5000).get();
+                    .userAgent(HttpConnectionConst.USER_AGENT.toString()).timeout(10000).get();
         } catch (IOException ex){
             //second try to access the link - in the case of IOException again - will be handled in in the level up
             doc = Jsoup.connect(link).userAgent(HttpConnectionConst.DEFAULT_UA.toString())
-                    .userAgent(HttpConnectionConst.USER_AGENT.toString()).timeout(5000).get();
+                    .userAgent(HttpConnectionConst.USER_AGENT.toString()).timeout(10000).get();
         }
         return doc;
     }
@@ -67,11 +68,12 @@ public class ParfumsUaCrawler implements SiteProductProducer {
                     try {
                         pageDoc = documentFactory(paginatedCategoryLink);
                     } catch (IOException ex) {
-                        log.warn(HttpConnectionConst.HTTP_ERROR + paginatedCategoryLink);
+                        log.warn(HttpConnectionConst.HTTP_ERROR + paginatedCategoryLink + " " + ex);
                         return;
                     }
                     Elements blocks = pageDoc.select(HtmlParfumsConst.PRODUCT_BLOCK_SELECTOR.toString());
                     getProductSpecs(blocks, consumer);
+                    log.debug("Page " + finalI + ", link " + paginatedCategoryLink);
                 });
             }
             taskExecutor.shutdown();
@@ -94,7 +96,7 @@ public class ParfumsUaCrawler implements SiteProductProducer {
                 try{
                     doc = documentFactory(productDescUrl);
                 } catch (IOException ex){
-                    log.warn(HttpConnectionConst.HTTP_ERROR + productDescUrl);
+                    log.warn(HttpConnectionConst.HTTP_ERROR + productDescUrl+ " "+ ex);
                     continue;
                 }
                 String desctitle = doc.getElementsByClass(HtmlParfumsConst.PRODUCT_NAME_CLASS.toString()).text();
