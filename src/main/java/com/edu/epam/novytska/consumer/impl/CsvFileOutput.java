@@ -16,8 +16,10 @@ public class CsvFileOutput implements SiteProductConsumer {
         this.outputStream = new FileOutputStream(new File(fileName+"-"+getNowDate()+".csv"), true);
     }
 
+
+
     @Override
-    public void consume(List<String> specs) {
+    public synchronized void consume(List<String> specs) {
         log.debug("Product with title: "+ specs.get(0));
         try {
             outputStream.write(outputBuilder(specs).getBytes());

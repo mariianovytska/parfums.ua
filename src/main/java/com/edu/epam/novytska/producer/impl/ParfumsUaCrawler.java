@@ -11,29 +11,30 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Slf4j
 public class ParfumsUaCrawler implements SiteProductProducer {
 
-    private static final String BASE_LINK = "https://parfums.ua";
+    private static final String BASE_PARFUM_CATEGORY_LINK = "https://parfums.ua/category/parfums/none/1/60";
     private String language;
 
     @Override
     public void start(SiteProductConsumer consumer) {
         Document doc;
         try {
-            doc = documentFactory(BASE_LINK);
+            doc = documentFactory(BASE_PARFUM_CATEGORY_LINK);
         } catch (IOException e) {
-            log.warn("Can't open site: " + BASE_LINK);
+            log.warn("Can't open site: " + BASE_PARFUM_CATEGORY_LINK);
             return;
         }
-        Set<String> categories = getCategories(doc);
-        getAllProducts(categories, consumer);
+        getAllProducts(consumer, doc);
     }
 
     private Document documentFactory(String link) throws IOException {
@@ -51,51 +52,37 @@ public class ParfumsUaCrawler implements SiteProductProducer {
         return doc;
     }
 
-    private Set<String> getCategories(Document doc) {
+    private void getAllProducts(SiteProductConsumer consumer, Document doc) {
         this.language = doc.getElementsByTag(HtmlParfumsConst.HTML_TAG.toString()).attr(HtmlParfumsConst.HTML_LANG_ATTR.toString());
-        Set<String> categoryLinks = new LinkedHashSet<>();
-        Elements categories = doc.getElementsByClass(HtmlParfumsConst.CATEGORY_CLASS.toString());
-        for (Element category : categories) {
-            String cat = category.attr(HtmlParfumsConst.CATEGORY_HREF_ATTR.toString());
-            if(cat.startsWith(HtmlParfumsConst.CATEGORY_LINK.toString())){
-                if(categoryLinks.add(BASE_LINK.concat(cat))){
-                    log.debug("Category link: " + cat);
-                }
-            }
-        }
-        return categoryLinks;
-    }
-
-    private void getAllProducts(Set<String> categoryLinks, SiteProductConsumer consumer) {
-        for(String categoryLink: categoryLinks){
-            Document doc;
-            try{
-                doc = documentFactory(categoryLink);
-            } catch (IOException ex){
-                log.warn(HttpConnectionConst.HTTP_ERROR + categoryLink);
-                continue;
-            }
-            log.debug("Going to link: " + categoryLink);
-            Elements pages = doc.getElementsByClass(HtmlParfumsConst.PAGINATION_CLASS.toString());
-            if(!pages.isEmpty()){
-                Integer lastPage = Integer.parseInt(pages.get(0).attr(HtmlParfumsConst.PAGINATION_ATTRIBUTE.toString()));
-                for(int i = 1; i <= lastPage; i++){
-                    if(i > 1){
-                        String paginatedCategoryLink = categoryLink.concat(HtmlParfumsConst.PAGINATION_LINK.toString() + i);
-                        try{
-                            doc = documentFactory(paginatedCategoryLink);
-                        } catch (IOException ex){
-                            log.warn(HttpConnectionConst.HTTP_ERROR + paginatedCategoryLink);
-                            continue;
-                        }
+        Elements pages = doc.getElementsByClass(HtmlParfumsConst.PAGINATION_CLASS.toString());
+        if(!pages.isEmpty()){
+            Integer lastPage = Integer.parseInt(pages.get(0).attr(HtmlParfumsConst.PAGINATION_ATTRIBUTE.toString()));
+            ExecutorService taskExecutor = Executors.newFixedThreadPool(32);
+            for(int i = 2; i <= lastPage; i++) {
+                final int finalI = i;
+                taskExecutor.execute( () -> {
+                    String paginatedCategoryLink = BASE_PARFUM_CATEGORY_LINK
+                            .substring(0, 41).concat(finalI + HtmlParfumsConst.PRODUCTS_ON_PAGE.toString());
+                    Document pageDoc;
+                    try {
+                        pageDoc = documentFactory(paginatedCategoryLink);
+                    } catch (IOException ex) {
+                        log.warn(HttpConnectionConst.HTTP_ERROR + paginatedCategoryLink);
+                        return;
                     }
-                    Elements blocks = doc.select(HtmlParfumsConst.PRODUCT_BLOCK_SELECTOR.toString());
+                    Elements blocks = pageDoc.select(HtmlParfumsConst.PRODUCT_BLOCK_SELECTOR.toString());
                     getProductSpecs(blocks, consumer);
-                }
-            } else {
-                Elements blocks = doc.select(HtmlParfumsConst.PRODUCT_BLOCK_SELECTOR.toString());
-                getProductSpecs(blocks, consumer);
+                });
             }
+            taskExecutor.shutdown();
+            try {
+                taskExecutor.awaitTermination(1, TimeUnit.DAYS);
+            } catch (InterruptedException e) {
+                log.warn("Process interrupted - not all products may be gathered: " + e);
+            }
+        } else {
+            Elements blocks = doc.select(HtmlParfumsConst.PRODUCT_BLOCK_SELECTOR.toString());
+            getProductSpecs(blocks, consumer);
         }
     }
 
@@ -113,12 +100,12 @@ public class ParfumsUaCrawler implements SiteProductProducer {
                 String desctitle = doc.getElementsByClass(HtmlParfumsConst.PRODUCT_NAME_CLASS.toString()).text();
                 String desc = doc.getElementById(HtmlParfumsConst.PRODUCT_DESC_ID.toString()).getElementsByTag(HtmlParfumsConst.PRODUCT_DESC_TAG.toString()).text();
                 Elements specsubtitle = doc.getElementsByClass(HtmlParfumsConst.PRODUCT_SPECS_CLASS.toString());
-                consumer.consume(buildSpecs(desctitle, desc, specsubtitle));
+                consumer.consume(buildProductSpecs(desctitle, desc, specsubtitle));
             }
         }
     }
 
-    private List<String> buildSpecs(String desctitle, String desc, Elements specsubtitle){
+    private List<String> buildProductSpecs(String desctitle, String desc, Elements specsubtitle){
         Map<String, String> specsMap = new HashMap<>();
         String pattern = "(.*):(.*)";
         Pattern p = Pattern.compile(pattern);
@@ -134,7 +121,7 @@ public class ParfumsUaCrawler implements SiteProductProducer {
             specs.add(specsMap.get(TemplateParfumsConstRu.AROMATS.toString()));
             specs.add(specsMap.get(TemplateParfumsConstRu.BASE_NOTES.toString()));
             specs.add(specsMap.get(TemplateParfumsConstRu.HEART_NOTES.toString()));
-            specs.add(specsMap.get(TemplateParfumsConstRu.HEART_NOTES.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstRu.HIGH_NOTES.toString()));
             specs.add(specsMap.get(TemplateParfumsConstRu.BRAND.toString()));
             specs.add(specsMap.get(TemplateParfumsConstRu.COUNTRY.toString()));
             specs.add(specsMap.get(TemplateParfumsConstRu.VOLUME.toString()));
@@ -144,7 +131,7 @@ public class ParfumsUaCrawler implements SiteProductProducer {
             specs.add(specsMap.get(TemplateParfumsConstUa.AROMATS.toString()));
             specs.add(specsMap.get(TemplateParfumsConstUa.BASE_NOTES.toString()));
             specs.add(specsMap.get(TemplateParfumsConstUa.HEART_NOTES.toString()));
-            specs.add(specsMap.get(TemplateParfumsConstUa.HEART_NOTES.toString()));
+            specs.add(specsMap.get(TemplateParfumsConstUa.HIGH_NOTES.toString()));
             specs.add(specsMap.get(TemplateParfumsConstUa.BRAND.toString()));
             specs.add(specsMap.get(TemplateParfumsConstUa.COUNTRY.toString()));
             specs.add(specsMap.get(TemplateParfumsConstUa.VOLUME.toString()));
