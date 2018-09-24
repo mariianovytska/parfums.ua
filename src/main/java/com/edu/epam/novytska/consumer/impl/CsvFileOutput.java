@@ -1,15 +1,11 @@
 package com.edu.epam.novytska.consumer.impl;
 
-import com.edu.epam.novytska.constants.TemplateParfumsConstRu;
-import com.edu.epam.novytska.constants.TemplateParfumsConstUa;
 import com.edu.epam.novytska.consumer.SiteProductConsumer;
 import lombok.extern.slf4j.Slf4j;
 import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Slf4j
 public class CsvFileOutput implements SiteProductConsumer {
@@ -21,10 +17,10 @@ public class CsvFileOutput implements SiteProductConsumer {
     }
 
     @Override
-    public void consume(String title, String desc, List<String> specs) {
-        log.debug("Product with title: "+ title);
+    public void consume(List<String> specs) {
+        log.debug("Product with title: "+ specs.get(0));
         try {
-            outputStream.write(outputBuilder(title, desc, specs).getBytes());
+            outputStream.write(outputBuilder(specs).getBytes());
             outputStream.flush();
         } catch (IOException e) {
             StringWriter writer = new StringWriter();
@@ -34,8 +30,8 @@ public class CsvFileOutput implements SiteProductConsumer {
         }
     }
 
-    private String outputBuilder(String title, String desc, List<String> specs){
-        String result = title.replace(",", "").concat(",");
+    private String outputBuilder(List<String> specs){
+        String result = "";
         for(String spec: specs){
             if(spec != null){
                 spec = spec.replace(",", "");
@@ -44,8 +40,7 @@ public class CsvFileOutput implements SiteProductConsumer {
             }
             result = result.concat(spec+",");
         }
-        String descCsv = desc.replace(",", "");
-        return result.concat(descCsv+"\n");
+        return result.concat("\n");
     }
 
     private String getNowDate(){

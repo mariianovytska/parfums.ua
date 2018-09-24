@@ -53,7 +53,7 @@ public class ParfumsUaCrawler implements SiteProductProducer {
 
     private Set<String> getCategories(Document doc) {
         this.language = doc.getElementsByTag(HtmlParfumsConst.HTML_TAG.toString()).attr(HtmlParfumsConst.HTML_LANG_ATTR.toString());
-        Set<String> categoryLinks = new HashSet<>();
+        Set<String> categoryLinks = new LinkedHashSet<>();
         Elements categories = doc.getElementsByClass(HtmlParfumsConst.CATEGORY_CLASS.toString());
         for (Element category : categories) {
             String cat = category.attr(HtmlParfumsConst.CATEGORY_HREF_ATTR.toString());
@@ -113,12 +113,12 @@ public class ParfumsUaCrawler implements SiteProductProducer {
                 String desctitle = doc.getElementsByClass(HtmlParfumsConst.PRODUCT_NAME_CLASS.toString()).text();
                 String desc = doc.getElementById(HtmlParfumsConst.PRODUCT_DESC_ID.toString()).getElementsByTag(HtmlParfumsConst.PRODUCT_DESC_TAG.toString()).text();
                 Elements specsubtitle = doc.getElementsByClass(HtmlParfumsConst.PRODUCT_SPECS_CLASS.toString());
-                consumer.consume(desctitle, desc, buildSpecs(specsubtitle));
+                consumer.consume(buildSpecs(desctitle, desc, specsubtitle));
             }
         }
     }
 
-    private List<String> buildSpecs(Elements specsubtitle){
+    private List<String> buildSpecs(String desctitle, String desc, Elements specsubtitle){
         Map<String, String> specsMap = new HashMap<>();
         String pattern = "(.*):(.*)";
         Pattern p = Pattern.compile(pattern);
@@ -129,6 +129,7 @@ public class ParfumsUaCrawler implements SiteProductProducer {
             }
         }
         List<String> specs = new ArrayList<>();
+        specs.add(desctitle.trim());
         if(language.equals("ru")){
             specs.add(specsMap.get(TemplateParfumsConstRu.AROMATS.toString()));
             specs.add(specsMap.get(TemplateParfumsConstRu.BASE_NOTES.toString()));
@@ -150,6 +151,7 @@ public class ParfumsUaCrawler implements SiteProductProducer {
             specs.add(specsMap.get(TemplateParfumsConstUa.SEX.toString()));
             specs.add(specsMap.get(TemplateParfumsConstUa.LAUNCH_DATE.toString()));
         }
+        specs.add(desc.trim());
         return specs;
     }
 }
