@@ -56,6 +56,8 @@ public class ParfumsUaCrawler implements SiteProductProducer {
     private void getAllProducts(SiteProductConsumer consumer, Document doc) {
         this.language = doc.getElementsByTag(HtmlParfumsConst.HTML_TAG.toString()).attr(HtmlParfumsConst.HTML_LANG_ATTR.toString());
         Elements pages = doc.getElementsByClass(HtmlParfumsConst.PAGINATION_CLASS.toString());
+        Elements blocks1 = doc.select(HtmlParfumsConst.PRODUCT_BLOCK_SELECTOR.toString());
+        getProductSpecs(blocks1, consumer);
         if(!pages.isEmpty()){
             Integer lastPage = Integer.parseInt(pages.get(0).attr(HtmlParfumsConst.PAGINATION_ATTRIBUTE.toString()));
             ExecutorService taskExecutor = Executors.newFixedThreadPool(32);
